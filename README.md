@@ -1,8 +1,10 @@
 # IncidentIQ
 
+[![Verify IncidentIQ](https://github.com/shashank4066/IncidentIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/shashank4066/IncidentIQ/actions/workflows/ci.yml)
+
 **A cloud incident command center with evidence-based, AI-assisted root cause investigation.**
 
-Spring Boot 3.5 Â· Java 21 Â· React 19 Â· Kafka Â· PostgreSQL Â· Redis Â· OpenTelemetry Â· Prometheus Â· Grafana Â· Docker Â· Kubernetes Â· AKS Â· Terraform Â· GitHub Actions
+Spring Boot 3.5 · Java 21 · React 19 · Kafka · PostgreSQL · Redis · OpenTelemetry · Prometheus · Grafana · Docker · Kubernetes · AKS · Terraform · GitHub Actions
 
 IncidentIQ turns application alerts into assigned incidents, records the response, and analyzes a bounded evidence snapshot. It is a production-style reference project for learning, demonstrations and portfolio use. The repository includes deployment infrastructure; it does not claim that an Azure environment has already been provisioned or operated in production.
 
@@ -12,7 +14,7 @@ IncidentIQ turns application alerts into assigned incidents, records the respons
 - Persistent event-ID idempotency; a reused event ID with different content returns HTTP 409.
 - Grouping by source, service and fingerprint while an incident remains active; a new alert after resolution opens a new incident.
 - Default assignment to the registered on-call team, reassignment, notes and an audit timeline.
-- Guarded lifecycle: open â†’ acknowledged â†’ investigating â†’ mitigated â†’ resolved. Investigation may resolve directly; mitigation can return to investigation.
+- Guarded lifecycle: open → acknowledged → investigating → mitigated → resolved. Investigation may resolve directly; mitigation can return to investigation.
 - MTTA and MTTR from actual timestamps, a seven-day volume chart, severity breakdown and service-health signals.
 - Log evidence, trace references, common credential/email redaction, and RCA invalidation when evidence changes.
 - A separate Kafka RCA worker with bounded retries, dead-letter publication, a transactional outbox, idempotent callbacks and rejection of stale results.
@@ -74,9 +76,9 @@ docker compose up --build -d --wait
 
 Open http://localhost:3000. Sign in as `admin` with `ADMIN_PASSWORD` from your local `.env`. The generator preserves an existing `.env`, generates independent random passwords, and never prints them. Do not commit that file.
 
-This mode runs PostgreSQL, Redis, a single-node Kafka KRaft broker, the incident API, the RCA worker and the frontend. Named volumes retain PostgreSQL and Kafka data. The default generated configuration seeds example data; set `SEED_DEMO=false` for an empty workspace. Register services through **Service health â†’ Register service**, then ingest telemetry and alerts.
+This mode runs PostgreSQL, Redis, a single-node Kafka KRaft broker, the incident API, the RCA worker and the frontend. Named volumes retain PostgreSQL and Kafka data. The default generated configuration seeds example data; set `SEED_DEMO=false` for an empty workspace. Register services through **Service health → Register service**, then ingest telemetry and alerts.
 
-Allow roughly 4â€“6 GB for this stack. Monitoring is optional and consumes additional memory:
+Allow roughly 4–6 GB for this stack. Monitoring is optional and consumes additional memory:
 
 ```bash
 # Enable traces in .env by adding TRACING_ENABLED=true first.
@@ -90,7 +92,7 @@ docker compose --profile observability up --build -d --wait
 | http://localhost:9090 | Prometheus, when observability is enabled |
 | http://localhost:3001 | Grafana, user `admin`, local `GRAFANA_PASSWORD` |
 
-Grafana automatically provisions the **IncidentIQ Â· Operations** dashboard, Prometheus and Tempo. The API exports Micrometer metrics in Prometheus format and OpenTelemetry traces over OTLP/HTTP to the collector, which batches and sends them to Tempo. Metrics reach Prometheus by scraping; traces reach Tempo through the collector. Application logs are attached through the incident ingestion API; this repository does not claim to operate a general-purpose centralized log storage system.
+Grafana automatically provisions the **IncidentIQ · Operations** dashboard, Prometheus and Tempo. The API exports Micrometer metrics in Prometheus format and OpenTelemetry traces over OTLP/HTTP to the collector, which batches and sends them to Tempo. Metrics reach Prometheus by scraping; traces reach Tempo through the collector. Application logs are attached through the incident ingestion API; this repository does not claim to operate a general-purpose centralized log storage system.
 
 Run `docker compose down` to stop. `down -v` also removes development database and broker volumes; use it only when you intend to reset that data.
 
@@ -115,7 +117,7 @@ The worker sends the title, description, severity, service identifier and latest
 1. Sign in, open the seeded payment incident and review its timeline and evidence.
 2. Declare a new incident or post the sample alert below. Verify its severity and team assignment.
 3. Acknowledge and investigate it, adding a response note for each change.
-4. Open **AI investigation â†’ Generate analysis**. Cloud mode returns a queued state until the worker callback completes.
+4. Open **AI investigation → Generate analysis**. Cloud mode returns a queued state until the worker callback completes.
 5. Attach new logs and observe that the old analysis is invalidated. Request an updated analysis.
 6. Resolve the incident and verify that the dashboard updates MTTR.
 7. Replay exactly the same alert: the occurrence count does not change. Send a new event ID with the same fingerprint: it groups with an active incident.
@@ -150,7 +152,7 @@ npm run test:e2e
 
 The verification workflow runs Java tests, frontend tests and build, Terraform validation, Kustomize rendering, a real Docker Compose integration smoke test, and Playwright operator/viewer scenarios. Docker integration exercises PostgreSQL migrations, Kafka, Redis and the worker callback, rather than substituting them with H2.
 
-The source includes security and full-stack checks, but a passing CI run must be verified in your GitHub account. See [docs/VALIDATION.md](docs/VALIDATION.md) for what was actually executed while producing this delivery. When npm first resolves the dependency tree, retain and commit its generated `frontend/package-lock.json`; Docker and subsequent builds use `npm ci` when it exists.
+The [full verification run passed](https://github.com/shashank4066/IncidentIQ/actions/runs/40082875245), including the Java reactor, frontend build, Terraform/Kustomize checks, real Compose integration and both Playwright scenarios. See [docs/VALIDATION.md](docs/VALIDATION.md) for the exact results and remaining deployment boundaries. When npm first resolves the dependency tree, retain and commit its generated `frontend/package-lock.json`; Docker and subsequent builds use `npm ci` when it exists.
 
 ## Architecture and operations
 
