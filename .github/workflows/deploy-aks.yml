@@ -39,7 +39,7 @@ jobs:
           done
           docker build -t "$REGISTRY_HOST/frontend:$IMAGE_TAG" frontend
           docker push "$REGISTRY_HOST/frontend:$IMAGE_TAG"
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - uses: azure/use-kubelogin@v1
         with:
           kubelogin-version: 'v0.1.6'

@@ -50,7 +50,7 @@ jobs:
         with:
           terraform_version: '1.11.4'
       - run: terraform -chdir=infra/terraform init -backend=false && terraform -chdir=infra/terraform validate
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - run: kubectl kustomize infra/k8s/base > /tmp/incidentiq-base.yml && kubectl kustomize infra/k8s/overlays/aks > /tmp/incidentiq-aks.yml
   integration:
     runs-on: ubuntu-latest
