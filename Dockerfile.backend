@@ -6,7 +6,7 @@ COPY incident-service ./incident-service
 COPY rca-worker ./rca-worker
 ARG SERVICE=incident-service
 RUN mvn -B -ntp -pl ${SERVICE} -am package -DskipTests && cp ${SERVICE}/target/${SERVICE}-1.0.0.jar /app.jar
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:24-jre-alpine
 RUN addgroup -g 10001 app && adduser -D -u 10001 -G app app
 WORKDIR /app
 COPY --from=build /app.jar app.jar
