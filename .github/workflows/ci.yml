@@ -20,7 +20,7 @@ jobs:
           java-version: '21'
           cache: maven
       - run: mvn -B -ntp verify
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: junit-reports
@@ -36,7 +36,7 @@ jobs:
         working-directory: frontend
       - run: npm test && npm run build
         working-directory: frontend
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-build
           path: |
@@ -80,7 +80,7 @@ jobs:
           set +a
           cd frontend
           npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: browser-test-results
