@@ -1,0 +1,24 @@
+groups:
+  - name: incidentiq
+    rules:
+      - alert: IncidentApiDown
+        expr: up{job="incident-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Incident API cannot be scraped
+      - alert: OutboxBacklog
+        expr: incidentiq_outbox_pending > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Kafka event delivery backlog is growing
+      - alert: HighApiErrorRate
+        expr: sum(rate(http_server_requests_seconds_count{job="incident-api",status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job="incident-api"}[5m])), 0.001) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: API server errors exceed five percent

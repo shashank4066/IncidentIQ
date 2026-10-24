@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incidentiq-config
+data:
+  SPRING_PROFILES_ACTIVE: cloud
+  DATABASE_URL: jdbc:postgresql://postgres:5432/incidentiq
+  DATABASE_USERNAME: incidentiq
+  REDIS_HOST: redis
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  INCIDENT_API_URL: http://incident-service:8080
+  SEED_DEMO: 'false'
+  MANAGEMENT_TRACING_ENABLED: 'false'
+  AI_BASE_URL: https://api.openai.com/v1
+  AI_MODEL: gpt-4o-mini

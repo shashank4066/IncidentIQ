@@ -1,0 +1,6 @@
+subscription_id = "YOUR_AZURE_SUBSCRIPTION_ID"
+registry_name = "incidentiqunique123"
+admin_group_object_ids = ["YOUR_ENTRA_ADMIN_GROUP_OBJECT_ID"]
+authorized_ip_ranges = ["YOUR_PUBLIC_IP/32"]
+location = "centralindia"
+node_count = 2

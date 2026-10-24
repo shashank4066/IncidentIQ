@@ -1,0 +1,14 @@
+{
+  "source": "prometheus-adapter",
+  "eventId": "payments-pool-2026-10-24T08:00:00Z",
+  "fingerprint": "payments-database-pool-exhausted",
+  "title": "Payment authorization failures above threshold",
+  "description": "Error rate and database connection waits increased after deployment.",
+  "service": "payments",
+  "errorRate": 0.23,
+  "latencyP95": 4800,
+  "logs": [
+    {"timestamp":"2026-10-24T08:00:00Z","level":"ERROR","message":"SQLTransientConnectionException: connection pool exhausted after 30000ms","traceId":"8eaf24b7c901"},
+    {"timestamp":"2026-10-24T08:00:01Z","level":"ERROR","message":"POST /authorize timeout while acquiring database connection","traceId":"8eaf24b7c902"}
+  ]
+}

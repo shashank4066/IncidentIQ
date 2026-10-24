@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: incidentiq
+resources: [../../base, ingress.yml]
+images:
+  - name: incidentiq/incident-service
+    newName: REPLACE_REGISTRY.azurecr.io/incident-service
+    newTag: REPLACE_TAG
+  - name: incidentiq/rca-worker
+    newName: REPLACE_REGISTRY.azurecr.io/rca-worker
+    newTag: REPLACE_TAG
+  - name: incidentiq/frontend
+    newName: REPLACE_REGISTRY.azurecr.io/frontend
+    newTag: REPLACE_TAG

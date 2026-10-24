@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:incidentiq;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ''
+  cache:
+    type: simple
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+management:
+  tracing:
+    enabled: false
+app:
+  seed: true
+  auth:
+    admin-password: demo-admin
+    viewer-password: demo-viewer
+    worker-password: demo-worker

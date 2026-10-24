@@ -1,0 +1,87 @@
+name: Deploy to AKS
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: deploy-aks
+  cancel-in-progress: false
+jobs:
+  deploy:
+    # Use a runner with a stable egress IP permitted by the AKS authorized IP ranges.
+    runs-on: [self-hosted, linux, incidentiq-deploy]
+    environment: aks
+    env:
+      REGISTRY_NAME: ${{ vars.AZURE_REGISTRY_NAME }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      CLUSTER_NAME: ${{ vars.AZURE_AKS_NAME }}
+      APP_HOST: ${{ vars.APP_HOST }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Build and push immutable images
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$REGISTRY_NAME" && test -n "$RESOURCE_GROUP" && test -n "$CLUSTER_NAME" && test -n "$APP_HOST"
+          az acr login --name "$REGISTRY_NAME"
+          REGISTRY_HOST=$(az acr show --name "$REGISTRY_NAME" --query loginServer -o tsv)
+          echo "REGISTRY_HOST=$REGISTRY_HOST" >> "$GITHUB_ENV"
+          for service in incident-service rca-worker; do
+            docker build -f Dockerfile.backend --build-arg SERVICE="$service" -t "$REGISTRY_HOST/$service:$IMAGE_TAG" .
+            docker push "$REGISTRY_HOST/$service:$IMAGE_TAG"
+          done
+          docker build -t "$REGISTRY_HOST/frontend:$IMAGE_TAG" frontend
+          docker push "$REGISTRY_HOST/frontend:$IMAGE_TAG"
+      - uses: azure/setup-kubectl@v4
+      - uses: azure/use-kubelogin@v1
+        with:
+          kubelogin-version: 'v0.1.6'
+      - name: Connect using Entra identity
+        run: |
+          az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$CLUSTER_NAME" --overwrite-existing
+          kubelogin convert-kubeconfig -l azurecli
+          kubectl apply -f infra/k8s/base/namespace.yml
+      - name: Configure application secrets
+        env:
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          VIEWER_PASSWORD: ${{ secrets.VIEWER_PASSWORD }}
+          WORKER_PASSWORD: ${{ secrets.WORKER_PASSWORD }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os,pathlib
+          keys=['DATABASE_PASSWORD','REDIS_PASSWORD','ADMIN_PASSWORD','VIEWER_PASSWORD','WORKER_PASSWORD']
+          if any(not os.environ.get(k) for k in keys): raise SystemExit('Missing required application secrets')
+          keys+=['AI_API_KEY']
+          path=pathlib.Path('/tmp/incidentiq-secrets.env')
+          path.write_text(''.join(k+'='+os.environ.get(k,'')+'\n' for k in keys))
+          path.chmod(0o600)
+          PY
+          trap 'rm -f /tmp/incidentiq-secrets.env' EXIT
+          kubectl -n incidentiq create secret generic incidentiq-secrets --from-env-file=/tmp/incidentiq-secrets.env --dry-run=client -o yaml | kubectl apply -f -
+      - name: Render deployment
+        run: |
+          python - <<'PY'
+          import os,pathlib
+          p=pathlib.Path('infra/k8s/overlays/aks/kustomization.yaml')
+          p.write_text(p.read_text().replace('REPLACE_REGISTRY.azurecr.io',os.environ['REGISTRY_HOST']).replace('REPLACE_TAG',os.environ['IMAGE_TAG']))
+          p=pathlib.Path('infra/k8s/overlays/aks/ingress.yml')
+          p.write_text(p.read_text().replace('incidentiq.example.com',os.environ['APP_HOST']))
+          PY
+          kubectl apply -k infra/k8s/overlays/aks
+          kubectl -n incidentiq rollout status deployment/incident-service --timeout=300s
+          kubectl -n incidentiq rollout status deployment/rca-worker --timeout=300s
+          kubectl -n incidentiq rollout status deployment/frontend --timeout=180s
+      - name: Verify TLS endpoint
+        run: curl --fail --retry 10 --retry-delay 5 "https://$APP_HOST/healthz"

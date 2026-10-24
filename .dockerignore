@@ -1,0 +1,10 @@
+**/node_modules
+**/target
+**/dist
+.git
+.env
+.env.*
+**/*.tfstate*
+**/.terraform
+**/test-results
+**/*.log

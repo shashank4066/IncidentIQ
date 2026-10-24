@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+rule_files: [/bootstrap/alerts.yml]
+scrape_configs:
+  - job_name: incident-api
+    metrics_path: /actuator/prometheus
+    basic_auth:
+      username: admin
+      password_file: /tmp/api-password
+    static_configs:
+      - targets: [incident-service:8080]
+  - job_name: rca-worker
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [rca-worker:8081]

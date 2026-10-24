@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incident-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: incident-service}
+  template:
+    metadata:
+      labels: {app: incident-service}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: api
+          image: incidentiq/incident-service:latest
+          ports: [{containerPort: 8080}]
+          envFrom: [{configMapRef: {name: incidentiq-config}}]
+          env:
+            - name: DATABASE_PASSWORD
+              valueFrom: {secretKeyRef: {name: incidentiq-secrets, key: DATABASE_PASSWORD}}
+            - name: REDIS_PASSWORD
+              valueFrom: {secretKeyRef: {name: incidentiq-secrets, key: REDIS_PASSWORD}}
+            - name: ADMIN_PASSWORD
+              valueFrom: {secretKeyRef: {name: incidentiq-secrets, key: ADMIN_PASSWORD}}
+            - name: VIEWER_PASSWORD
+              valueFrom: {secretKeyRef: {name: incidentiq-secrets, key: VIEWER_PASSWORD}}
+            - name: WORKER_PASSWORD
+              valueFrom: {secretKeyRef: {name: incidentiq-secrets, key: WORKER_PASSWORD}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: '1', memory: 1Gi}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+          startupProbe: {httpGet: {path: /actuator/health/liveness, port: 8080}, failureThreshold: 36, periodSeconds: 5}
+          readinessProbe: {httpGet: {path: /actuator/health/readiness, port: 8080}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /actuator/health/liveness, port: 8080}, periodSeconds: 15}
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: incident-service}
+spec:
+  selector: {app: incident-service}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: rca-worker}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: rca-worker}}
+  template:
+    metadata: {labels: {app: rca-worker}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: worker
+          image: incidentiq/rca-worker:latest
+          ports: [{containerPort: 8081}]
+          envFrom: [{configMapRef: {name: incidentiq-config}}]
+          env:
+            - name: WORKER_PASSWORD
+              valueFrom: {secretKeyRef: {name: incidentiq-secrets, key: WORKER_PASSWORD}}
+            - name: AI_API_KEY
+              valueFrom: {secretKeyRef: {name: incidentiq-secrets, key: AI_API_KEY}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 200m, memory: 384Mi}
+            limits: {cpu: '1', memory: 768Mi}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+          startupProbe: {httpGet: {path: /actuator/health/liveness, port: 8081}, failureThreshold: 36, periodSeconds: 5}
+          readinessProbe: {httpGet: {path: /actuator/health/readiness, port: 8081}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /actuator/health/liveness, port: 8081}, periodSeconds: 15}
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: rca-worker}
+spec:
+  selector: {app: rca-worker}
+  ports: [{port: 8081, targetPort: 8081}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: frontend}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: frontend}}
+  template:
+    metadata: {labels: {app: frontend}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 101, fsGroup: 101, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: web
+          image: incidentiq/frontend:latest
+          ports: [{containerPort: 8080}]
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {cpu: 250m, memory: 128Mi}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 15}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: frontend}
+spec:
+  selector: {app: frontend}
+  ports: [{port: 80, targetPort: 8080}]
