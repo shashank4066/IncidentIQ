@@ -1,0 +1,68 @@
+name: Record portfolio demo
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: portfolio-demo
+  cancel-in-progress: false
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build real demo applications
+        run: |
+          mvn -B -ntp -pl incident-service -am package
+          cd frontend
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - uses: actions/checkout@v4
+        with:
+          repository: shashank4066/frameforge-agentic-video
+          path: frameforge-demo
+      - name: Start applications
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg espeak
+          pip install -r frameforge-demo/requirements.txt
+          java -jar incident-service/target/incident-service-1.0.0.jar --spring.profiles.active=demo > /tmp/incident-api.log 2>&1 &
+          (cd frontend && npm run dev -- --port 5173 > /tmp/incident-web.log 2>&1 &)
+          (cd frameforge-demo && uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/frameforge.log 2>&1 &)
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/actuator/health > /dev/null && curl -fsS http://127.0.0.1:5173/ > /dev/null && curl -fsS http://127.0.0.1:8000/api/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/incident-api.log
+          exit 1
+      - name: Record actual application workflow
+        working-directory: frontend
+        run: node scripts/record-portfolio-demo.mjs
+      - name: Encode web video
+        run: |
+          ffmpeg -y -i docs/media/incidentiq-walkthrough.webm -an -c:v libx264 -preset medium -crf 29 -pix_fmt yuv420p -movflags +faststart docs/media/incidentiq-walkthrough.mp4
+          rm docs/media/incidentiq-walkthrough.webm
+          rm -rf docs/media/raw
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-demo-media
+          path: docs/media/
+      - name: Publish demo evidence
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/media/incidentiq-dashboard.jpg docs/media/incidentiq-analysis.jpg docs/media/incidentiq-walkthrough.mp4 docs/media/frameforge-dashboard.jpg
+          git commit -m "docs: add actual application walkthrough and screenshots [skip ci]" || exit 0
+          git push
