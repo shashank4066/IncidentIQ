@@ -11,6 +11,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
+ @Bean BCryptPasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
  @Bean UserDetailsService users(@Value("${app.auth.admin-password}") String admin,@Value("${app.auth.viewer-password}") String viewer,@Value("${app.auth.worker-password}") String worker) {
   var encoder=new BCryptPasswordEncoder();
   return new InMemoryUserDetailsManager(User.withUsername("admin").password(encoder.encode(admin)).roles("ADMIN","RESPONDER","VIEWER").build(),User.withUsername("viewer").password(encoder.encode(viewer)).roles("VIEWER").build(),User.withUsername("rca-worker").password(encoder.encode(worker)).roles("WORKER").build());
