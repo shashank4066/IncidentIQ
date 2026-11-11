@@ -12,23 +12,15 @@ The diagram shows the event-driven `cloud` profile. Both local run modes are com
 
 ```mermaid
 flowchart TD
-    UI["React dashboard / Nginx"] -->|"REST / Basic auth"| API
-    Alerts["Application alerts and telemetry"] -->|"Validated ingestion"| API
-
-    subgraph Applications["Java 21 / Spring Boot"]
-        API["Incident API: lifecycle, evidence, authorization"]
-        Publisher["Scheduled outbox publisher"]
-        Worker["RCA worker: analysis and evidence validation"]
-    end
-
-    API <-->|"JPA transactions"| DB[("PostgreSQL: incidents, receipts, evidence, outbox")]
-    API <-->|"Summary cache / 10 s TTL"| Redis[("Redis")]
-    DB -->|"Claim committed outbox rows"| Publisher
-    Publisher -->|"Incident UUID as key"| Kafka["Kafka: incidentiq.events.v1"]
-    Kafka -->|"RCA_REQUESTED events"| Worker
-    Worker -->|"Authenticated callback / request + revision checks"| API
-    Worker <-->|"Optional model call"| AI["OpenAI-compatible provider"]
-    Worker -->|"Unrecoverable / exhausted delivery failures"| DLT["Kafka: incidentiq.events.v1.DLT"]
+    UI["React dashboard / Nginx"] -->|"REST"| API["Incident API"]
+    Alerts["Alerts and telemetry"] -->|"REST"| API
+    API <-->|"Incidents and outbox"| DB[("PostgreSQL")]
+    API <-->|"Summary cache"| Redis[("Redis")]
+    API -->|"Outbox publication"| Kafka["Kafka events"]
+    Kafka -->|"RCA_REQUESTED"| Worker["RCA worker"]
+    Worker -->|"Revision-checked callback"| API
+    Worker <-->|"Optional model call"| AI["AI provider"]
+    Worker -->|"Unrecoverable delivery failures"| DLT["Kafka DLT"]
 ```
 
 **Ownership:** the API alone writes incident data. The publisher runs inside the API application. The worker consumes immutable evidence snapshots and sends results back through the API; it does not directly query PostgreSQL. Redis holds derived dashboard summaries. PostgreSQL is the system of record.
@@ -68,7 +60,7 @@ sequenceDiagram
     participant Worker as RCA worker
 
     User->>API: POST /api/incidents/{id}/rca
-    API->>DB: Lock incident; save request ID and outbox snapshot
+    API->>DB: Lock incident and save request ID and outbox snapshot
     DB-->>API: Transaction committed
     API-->>User: Incident with RCA status QUEUED
     Note over API: Scheduled outbox publisher runs inside the API
@@ -84,9 +76,9 @@ sequenceDiagram
         API->>DB: Save analysis and completion timeline entry
         API-->>Worker: 200 COMPLETED
     else Same request already completed
-        API-->>Worker: 200 existing result; no repeated effects
+        API-->>Worker: 200 existing result, no repeated effects
     else Request or evidence is obsolete
-        API-->>Worker: 409; discard stale result
+        API-->>Worker: 409, discard stale result
     end
     User->>API: Refresh incident details
     API-->>User: Current evidence and analysis status
