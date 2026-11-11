@@ -1,12 +1,32 @@
 # IncidentIQ
 
-[![Verify IncidentIQ](https://github.com/shashank4066/IncidentIQ/actions/workflows/ci.yml/badge.svg)](https://github.com/shashank4066/IncidentIQ/actions/workflows/ci.yml)
+[![Verify IncidentIQ](https://github.com/shashank4066/IncidentIQ/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shashank4066/IncidentIQ/actions/workflows/ci.yml)
 
 **A cloud incident command center with evidence-based, AI-assisted root cause investigation.**
 
 Spring Boot 3.5 · Java 21 · React 19 · Kafka · PostgreSQL · Redis · OpenTelemetry · Prometheus · Grafana · Docker · Kubernetes · AKS · Terraform · GitHub Actions
 
 IncidentIQ turns application alerts into assigned incidents, records the response, and analyzes a bounded evidence snapshot. It is a production-style reference project for learning, demonstrations and portfolio use. The repository includes deployment infrastructure; it does not claim that an Azure environment has already been provisioned or operated in production.
+
+[Architecture](ARCHITECTURE.md) · [Quick demo](#start-with-the-lightweight-demo) · [API](docs/API.md) · [Tests and CI](#tests-and-ci) · [Walkthrough video](docs/media/incidentiq-walkthrough.mp4)
+
+![IncidentIQ operations dashboard showing incident queues, response metrics and service health](docs/media/incidentiq-dashboard.jpg)
+
+*Dashboard from the synthetic demo workspace. [View the evidence and analysis screen](docs/media/incidentiq-analysis.jpg).*
+
+## Review in five minutes
+
+IncidentIQ demonstrates a complete Java Full Stack workflow: ingest an alert, assign ownership, investigate evidence, generate a reviewable analysis and record recovery.
+
+| What to explore | What it demonstrates | Where to look |
+| --- | --- | --- |
+| Try the dashboard | React incident workflow, audit timeline, service health and role-aware controls | [Lightweight demo](#start-with-the-lightweight-demo), [browser scenarios](frontend/e2e/incident.spec.js) |
+| Follow the system design | Service boundaries, asynchronous RCA, data ownership and lifecycle rules | [Architecture diagrams and design decisions](ARCHITECTURE.md) |
+| Inspect reliability behavior | Persistent alert deduplication, transactional outbox, idempotent callbacks and stale-result rejection | [Event guarantees](docs/ARCHITECTURE.md#event-guarantees), [workflow tests](incident-service/src/test/java/dev/incidentiq/api/CoreWorkflowTest.java) |
+| Inspect AI and access controls | Evidence-ID validation, labeled heuristic fallback and server-enforced roles | [AI adapter tests](rca-worker/src/test/java/dev/incidentiq/worker/AiAnalyzerTest.java), [HTTP/security tests](incident-service/src/test/java/dev/incidentiq/api/SecurityApiTest.java) |
+
+The [architecture guide](ARCHITECTURE.md#code-and-test-guide) maps design claims to source and tests, explains trade-offs and lists the next engineering milestones.
+
 
 ## What works
 
@@ -156,7 +176,8 @@ The [full verification run passed](https://github.com/shashank4066/IncidentIQ/ac
 
 ## Architecture and operations
 
-- [Architecture and event guarantees](docs/ARCHITECTURE.md)
+- [System diagrams, design decisions and code guide](ARCHITECTURE.md)
+- [Detailed event guarantees and operational rules](docs/ARCHITECTURE.md)
 - [API contract](docs/API.md)
 - [Azure / AKS deployment](docs/DEPLOYMENT.md)
 - [Operations runbook](docs/RUNBOOK.md)

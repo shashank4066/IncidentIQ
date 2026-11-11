@@ -1,23 +1,6 @@
-# Architecture
+# Event guarantees and operational rules
 
-```mermaid
-flowchart TD
-    Alerts[Application alerts and telemetry] --> API[Spring Boot incident API]
-    UI[React operations dashboard] --> API
-    API --> DB[(PostgreSQL)]
-    API --> Cache[(Redis summary cache)]
-    DB --> Outbox[Transactional outbox publisher]
-    Outbox --> Kafka[Kafka events]
-    Kafka --> Worker[Spring Boot RCA worker]
-    Worker --> AI[Configured AI provider or offline baseline]
-    Worker -->|Revision-checked callback| API
-    API --> Collector[OpenTelemetry collector]
-    Collector --> Tempo[Tempo traces]
-    API --> Prom[Prometheus metrics]
-    Worker --> Prom
-    Prom --> Grafana[Grafana]
-    Tempo --> Grafana
-```
+For the system diagrams, component responsibilities, RCA sequence, lifecycle, design decisions and code/test guide, start with [IncidentIQ Architecture](../ARCHITECTURE.md).
 
 The API owns incident data. The worker owns analysis execution and persists results through an authenticated API callback; it has no direct database credentials requirement. Redis is a ten-second summary cache. PostgreSQL remains the system of record.
 
@@ -31,7 +14,7 @@ Default severity: SEV1 at error rate ≥0.20; SEV2 at ≥0.05 or p95 ≥3000 ms;
 
 `incidentiq.events.v1` has three partitions with incident UUID keys. The outbox claims rows using PostgreSQL `FOR UPDATE SKIP LOCKED`, waits for broker acknowledgement and marks publication in the same database transaction. A crash after Kafka acceptance but before the database commit can duplicate an event. Delivery is **at least once**, not exactly once. Ordering is not guaranteed across multiple outbox publishers, so the consumer relies on immutable evidence revision and request IDs rather than arrival order.
 
-Events include schema version, event UUID, type, incident ID, request ID when relevant, timestamp and a context snapshot. Lifecycle events and `RCA_REQUESTED` share the topic. The RCA group ignores lifecycle events. Failed processing retries three times after the first attempt and publishes to `incidentiq.events.v1.DLT`; DLT publish failures are retried instead of silently acknowledged. A request left queued for five minutes becomes failed and may be explicitly retried.
+Events include schema version, event UUID, type, incident ID, request ID when relevant, timestamp and a context snapshot. Lifecycle events and `RCA_REQUESTED` share the topic. The RCA group ignores lifecycle events. Retryable processing failures retry three times after the first attempt before publication to `incidentiq.events.v1.DLT`. Invalid-argument failures are configured as non-retryable and go directly to dead-letter recovery. DLT publish failures are retried instead of silently acknowledged. A request left queued for five minutes becomes failed and may be explicitly retried.
 
 Callbacks are checked under an incident lock. Repeating a completed callback is harmless. A callback from an old request or evidence revision returns 409 and is discarded by the worker. New alerts/log evidence invalidate the current analysis. Repeated delivery can still incur repeated model inference; provider cost deduplication is a future improvement.
 
